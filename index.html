@@ -15,6 +15,20 @@ nav a{flex:1;text-align:center;padding:12px 0;color:var(--m);text-decoration:non
 #feed video{width:100%;height:100%;object-fit:cover}
 .ov{position:absolute;left:12px;right:12px;bottom:14px;color:#fff;display:flex;justify-content:space-between;align-items:end}
 .ov button{width:auto;background:#0008}
+</style><style>
+:root{--bg:#f2f5fb;--c:#fff;--t:#0f1b33;--m:#6b778c;--p:#4f46e5;--p2:#06b6d4;--b:#e6eaf2;--sh:0 8px 24px rgba(30,41,90,.09)}
+@media(prefers-color-scheme:dark){:root{--bg:#0b1020;--c:#141b30;--t:#eef2ff;--m:#9aa6c3;--b:#222c48;--sh:none}}
+body{background:var(--bg);font-family:Inter,system-ui,sans-serif;padding-bottom:96px}
+main::before{content:"🚗 AutoLog";display:block;margin:-12px -12px 14px;padding:26px 20px 30px;font:800 24px system-ui;color:#fff;background:linear-gradient(135deg,var(--p),var(--p2));border-radius:0 0 28px 28px}
+.card{border:0;border-radius:20px;box-shadow:var(--sh);padding:16px}
+input,select{border-radius:12px;padding:11px 12px}input:focus,select:focus{outline:2px solid var(--p);border-color:transparent}
+button{background:linear-gradient(135deg,var(--p),var(--p2));border-radius:12px;padding:11px;font-weight:600}
+button.g{background:none;color:var(--p)}
+.big{font-size:21px;font-weight:800;background:linear-gradient(90deg,var(--p),var(--p2));-webkit-background-clip:text;background-clip:text;color:transparent}
+nav{left:12px;right:12px;bottom:12px;max-width:616px;margin:auto;border:0;border-radius:22px;box-shadow:0 10px 30px rgba(20,30,80,.22);overflow:hidden}
+nav a{padding:9px 0;font-size:11px}nav a span{display:block;font-size:20px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px}.chips button{width:auto;white-space:nowrap;background:var(--c);color:var(--t);border:1px solid var(--b);border-radius:999px;padding:8px 14px;box-shadow:var(--sh)}.chips button.on{background:var(--p);color:#fff;border-color:var(--p)}
+#feed{height:calc(100vh - 210px);border-radius:24px}
 </style></head><body><main id="app"></main><nav id="nav"></nav>
 <script>
 const $=s=>document.querySelector(s),E=s=>String(s??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
@@ -24,27 +38,31 @@ const save=()=>localStorage.al=JSON.stringify(S),P=()=>S.plan==='premium',R=n=>'
 const T={fuel:{n:'Abastecimentos',f:[['date','Data','date'],['km','Km atual','number'],['l','Litros','number'],['price','Preço por litro','number']],val:r=>r.l*r.price},
 exp:{n:'Despesas',f:[['date','Data','date'],['type','Tipo (IPVA, seguro…)','text'],['val','Valor R$','number']],val:r=>+r.val},
 svc:{n:'Serviços e lembretes',f:[['date','Data','date'],['desc','Serviço','text'],['km','Km atual','number'],['val','Valor R$','number'],['next','Lembrar daqui a (km)','number']],val:r=>+r.val}};
+const G=['fuel','exp','svc'];T.fuel.i='⛽';T.exp.i='💸';T.svc.i='🔧';
+T.rev={n:'Receitas',i:'💰',f:[['date','Data','date'],['type','Origem (frete, app…)','text'],['val','Valor R$','number']],val:r=>+r.val};
+T.trip={n:'Rotas',i:'🛣️',f:[['date','Data','date'],['desc','Origem → destino','text'],['ki','Km inicial','number'],['kf','Km final','number'],['min','Duração (min)','number']],val:r=>0,fmt:r=>`${r.kf-r.ki} km${r.min?' · '+((r.kf-r.ki)/(r.min/60)).toFixed(0)+' km/h':''}`};
+let K='fuel';
 const mine=k=>S[k].filter(r=>r.v==S.cur).sort((a,b)=>a.date<b.date?1:-1);
 let V='dash';const go=v=>{V=v;render()};
 const gate=m=>{alert(m+' é recurso Premium.');go('plan')};
 function render(){
-$('#nav').innerHTML=[['dash','Painel'],['fuel','⛽'],['exp','💸'],['svc','🔧'],['vids','▶ Vídeos'],['plan','⭐ Plano']].map(([k,n])=>`<a href="#" class="${V==k?'on':''}" onclick="go('${k}');return false">${n}</a>`).join('');
-$('#app').innerHTML=head()+(V=='dash'?dash():V=='vids'?vids():V=='plan'?plan():list(V));
+$('#nav').innerHTML=[['dash','🏠','Painel'],['rec','📋','Registros'],['vids','▶️','Vídeos'],['tools','🧰','Mais'],['plan','⭐','Plano']].map(([k,i,n])=>`<a href="#" class="${V==k?'on':''}" onclick="go('${k}');return false"><span>${i}</span>${n}</a>`).join('');
+$('#app').innerHTML=head()+(V=='dash'?dash():V=='vids'?vids():V=='plan'?plan():V=='tools'?tools():hub());
 if(V=='vids')play();}
 const head=()=>`<div class="row"><select onchange="S.cur=+this.value;save();render()">${S.veh.map(v=>`<option value="${v.id}" ${v.id==S.cur?'selected':''}>${E(v.name)}</option>`).join('')}</select><button style="width:auto;white-space:nowrap" class="g" onclick="addV()">+ Veículo</button></div>`;
 function addV(){if(!P()&&S.veh.length>=1)return gate('Mais de um veículo');const n=prompt('Nome do veículo');if(n){const id=uid();S.veh.push({id,name:n});S.cur=id;save();render()}}
 function list(k){const t=T[k];return `<div class="card"><b>${t.n}</b>${t.f.map(([n,l,ty])=>`<input id="f_${n}" type="${ty}" placeholder="${l}" ${ty=='number'?'step="any" inputmode="decimal"':''} ${ty=='date'?`value="${new Date().toISOString().slice(0,10)}"`:''}>`).join('')}<button onclick="add('${k}')">Salvar</button></div>`+
-mine(k).map(r=>`<div class="card row"><div>${E(r.date)} · ${E(r.desc||r.type||r.l+' L')}<div class="m">${r.km?r.km+' km':''}</div></div><div><b>${R(t.val(r))}</b> <a href="#" onclick="del('${k}',${r.id});return false">✕</a></div></div>`).join('')}
+mine(k).map(r=>`<div class="card row"><div>${E(r.date)} · ${E(r.desc||r.type||r.l+' L')}<div class="m">${r.km?r.km+' km':''}</div></div><div><b>${(t.fmt||(x=>R(t.val(x))))(r)}</b> <a href="#" onclick="del('${k}',${r.id});return false">✕</a></div></div>`).join('')}
 function add(k){const r={id:uid(),v:S.cur};for(const[n,,ty]of T[k].f){const e=$('#f_'+n).value;if(!e)return alert('Preencha todos os campos');r[n]=ty=='number'?+e:e}
 if(!P()&&mine(k).length>=30)return gate('Mais de 30 registros');S[k].push(r);save();render()}
 const del=(k,id)=>{S[k]=S[k].filter(r=>r.id!=id);save();render()};
 function dash(){const a=[...mine('fuel'),...mine('svc')].filter(r=>r.km).map(r=>r.km),odo=Math.max(0,...a),run=a.length>1?odo-Math.min(...a):0,
-tot=Object.keys(T).reduce((s,k)=>s+mine(k).reduce((x,r)=>x+T[k].val(r),0),0),f=mine('fuel').sort((a,b)=>a.km-b.km),lit=f.slice(1).reduce((s,r)=>s+r.l,0),cons=lit?(f.at(-1).km-f[0].km)/lit:0,
+rec=mine('rev').reduce((s,r)=>s+r.val,0),tot=G.reduce((s,k)=>s+mine(k).reduce((x,r)=>x+T[k].val(r),0),0),f=mine('fuel').sort((a,b)=>a.km-b.km),lit=f.slice(1).reduce((s,r)=>s+r.l,0),cons=lit?(f.at(-1).km-f[0].km)/lit:0,
 rem=mine('svc').filter(r=>r.next).map(r=>({d:r.desc,left:r.km+r.next-odo})).sort((a,b)=>a.left-b.left);
 return `<div class="card row"><div><div class="m">Gasto total</div><div class="big">${R(tot)}</div></div><div><div class="m">Consumo</div><div class="big">${cons?cons.toFixed(1)+' km/l':'—'}</div></div><div><div class="m">Custo/km</div><div class="big">${run?R(tot/run):'—'}</div></div></div>
-<div class="card"><b>Lembretes</b>${rem.map(x=>`<div class="row"><span>${E(x.d)}</span><span class="m">${x.left>0?'em '+x.left+' km':'⚠ vencido'}</span></div>`).join('')||'<div class="m">Nenhum</div>'}</div>${rep()}`}
+<div class="card row"><div><div class="m">Receitas</div><div class="big">${R(rec)}</div></div><div><div class="m">Saldo</div><div class="big">${R(rec-tot)}</div></div></div><div class="card"><b>Lembretes</b>${rem.map(x=>`<div class="row"><span>${E(x.d)}</span><span class="m">${x.left>0?'em '+x.left+' km':'⚠ vencido'}</span></div>`).join('')||'<div class="m">Nenhum</div>'}</div>${rep()}`}
 function rep(){if(!P())return `<div class="card"><b>Relatórios avançados</b><div class="m">Gastos por mês e exportação CSV no Premium.</div><button onclick="go('plan')">Conhecer o Premium</button></div>`;
-const m={};for(const k in T)mine(k).forEach(r=>{const y=r.date.slice(0,7);m[y]=(m[y]||0)+T[k].val(r)});const e=Object.entries(m).sort(),mx=Math.max(1,...e.map(x=>x[1]));
+const m={};for(const k of G)mine(k).forEach(r=>{const y=r.date.slice(0,7);m[y]=(m[y]||0)+T[k].val(r)});const e=Object.entries(m).sort(),mx=Math.max(1,...e.map(x=>x[1]));
 return `<div class="card"><b>Gastos por mês</b>${e.map(([y,v])=>`<div class="row"><span class="m">${y}</span><span style="flex:1"><i style="display:block;height:14px;border-radius:4px;background:var(--p);width:${v/mx*100}%"></i></span><span>${R(v)}</span></div>`).join('')}<button class="g" onclick="csv()">Exportar CSV</button></div>`}
 function csv(){const l=['tipo,data,descricao,km,valor'];for(const k in T)mine(k).forEach(r=>l.push([k,r.date,String(r.desc||r.type||'').replace(/,/g,' '),r.km||'',T[k].val(r)].join(',')));const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([l.join('\n')],{type:'text/csv'}));a.download='autolog.csv';a.click()}
 function vids(){return (P()?`<div class="card"><input id="vu" placeholder="URL do vídeo (.mp4)"><input id="vt" placeholder="Título"><button onclick="addVid()">Publicar</button></div>`:`<div class="card m">Assistir é grátis. Publicar vídeos é Premium. <a href="#" onclick="go('plan');return false">Ver plano</a></div>`)+
@@ -58,5 +76,10 @@ const buy=()=>api('checkout').then(j=>location=j.url).catch(e=>alert(e.message))
 const portal=()=>api('portal',{sid:S.sid}).then(j=>location=j.url).catch(e=>alert(e.message));
 async function sync(){const q=new URLSearchParams(location.search).get('sid');if(q){S.sid=q;history.replaceState({},'',location.pathname);V='plan'}
 if(S.sid)try{S.plan=(await api('status',{sid:S.sid})).premium?'premium':'free';save()}catch(e){}render()}
+const hub=()=>`<div class="chips">${Object.keys(T).map(k=>`<button class="${K==k?'on':''}" onclick="K='${k}';render()">${T[k].i} ${T[k].n}</button>`).join('')}</div>`+list(K);
+const tools=()=>`<div class="card"><b>⛽ Etanol ou gasolina?</b><div class="m">Etanol compensa se custar até 70% da gasolina.</div><input id="pg" type="number" step="any" inputmode="decimal" placeholder="Gasolina R$/L" oninput="cmp()"><input id="pe" type="number" step="any" inputmode="decimal" placeholder="Etanol R$/L" oninput="cmp()"><div id="cr" class="big"></div></div><div class="card"><b>💾 Backup dos dados</b><div class="m">Seus dados ficam só neste aparelho. Exporte para guardar ou mover para outro.</div><button onclick="bk()">Exportar backup</button><input type="file" accept=".json" onchange="rs(this.files[0])"></div>`;
+const cmp=()=>{const g=+$('#pg').value,e=+$('#pe').value;$('#cr').textContent=g&&e?(e/g<=.7?'✅ Abasteça com etanol':'⛽ Abasteça com gasolina')+' ('+(e/g*100).toFixed(0)+'%)':''};
+const bk=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download='autolog-backup.json';a.click()};
+const rs=f=>f&&f.text().then(t=>{try{const d=JSON.parse(t);if(!d.veh)throw 0;const{plan,sid}=S;Object.assign(S,d,{plan,sid});save();render()}catch{alert('Arquivo inválido')}});
 sync();
 </script></body></html>
