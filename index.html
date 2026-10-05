@@ -1,0 +1,62 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AutoLog – gestão do seu veículo</title>
+<style>
+:root{--bg:#f6f7f9;--c:#fff;--t:#111;--m:#667;--p:#0a7cff;--b:#e3e6ea}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1013;--c:#181b20;--t:#eee;--m:#9aa;--b:#2a2f36}}
+*{box-sizing:border-box}body{margin:0;font:15px system-ui,sans-serif;background:var(--bg);color:var(--t);padding-bottom:64px}
+main{max-width:640px;margin:auto;padding:12px}
+.card{background:var(--c);border:1px solid var(--b);border-radius:12px;padding:12px;margin:8px 0}
+input,select,button{font:inherit;padding:9px;border-radius:8px;border:1px solid var(--b);background:var(--c);color:var(--t);width:100%;margin:3px 0}
+button{background:var(--p);color:#fff;border:0;cursor:pointer}button.g{background:none;color:var(--p);border:1px solid var(--p)}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--c);border-top:1px solid var(--b)}
+nav a{flex:1;text-align:center;padding:12px 0;color:var(--m);text-decoration:none;font-size:13px}nav a.on{color:var(--p);font-weight:600}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center}.m{color:var(--m)}.big{font-size:22px;font-weight:700}
+#feed{height:calc(100vh - 150px);overflow-y:scroll;scroll-snap-type:y mandatory;border-radius:12px}
+#feed section{height:100%;scroll-snap-align:start;position:relative;background:#000}
+#feed video{width:100%;height:100%;object-fit:cover}
+.ov{position:absolute;left:12px;right:12px;bottom:14px;color:#fff;display:flex;justify-content:space-between;align-items:end}
+.ov button{width:auto;background:#0008}
+</style></head><body><main id="app"></main><nav id="nav"></nav>
+<script>
+const $=s=>document.querySelector(s),E=s=>String(s??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+const S=JSON.parse(localStorage.al||'null')||{veh:[{id:1,name:'Meu carro'}],cur:1,fuel:[],exp:[],svc:[],plan:'free',sid:'',
+vids:[{id:1,url:'https://www.w3schools.com/html/mov_bbb.mp4',title:'Exemplo 1',likes:0},{id:2,url:'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',title:'Exemplo 2',likes:0}]};
+const save=()=>localStorage.al=JSON.stringify(S),P=()=>S.plan==='premium',R=n=>'R$ '+(+n||0).toFixed(2).replace('.',','),uid=()=>Date.now()*1000+Math.floor(Math.random()*1000);
+const T={fuel:{n:'Abastecimentos',f:[['date','Data','date'],['km','Km atual','number'],['l','Litros','number'],['price','Preço por litro','number']],val:r=>r.l*r.price},
+exp:{n:'Despesas',f:[['date','Data','date'],['type','Tipo (IPVA, seguro…)','text'],['val','Valor R$','number']],val:r=>+r.val},
+svc:{n:'Serviços e lembretes',f:[['date','Data','date'],['desc','Serviço','text'],['km','Km atual','number'],['val','Valor R$','number'],['next','Lembrar daqui a (km)','number']],val:r=>+r.val}};
+const mine=k=>S[k].filter(r=>r.v==S.cur).sort((a,b)=>a.date<b.date?1:-1);
+let V='dash';const go=v=>{V=v;render()};
+const gate=m=>{alert(m+' é recurso Premium.');go('plan')};
+function render(){
+$('#nav').innerHTML=[['dash','Painel'],['fuel','⛽'],['exp','💸'],['svc','🔧'],['vids','▶ Vídeos'],['plan','⭐ Plano']].map(([k,n])=>`<a href="#" class="${V==k?'on':''}" onclick="go('${k}');return false">${n}</a>`).join('');
+$('#app').innerHTML=head()+(V=='dash'?dash():V=='vids'?vids():V=='plan'?plan():list(V));
+if(V=='vids')play();}
+const head=()=>`<div class="row"><select onchange="S.cur=+this.value;save();render()">${S.veh.map(v=>`<option value="${v.id}" ${v.id==S.cur?'selected':''}>${E(v.name)}</option>`).join('')}</select><button style="width:auto;white-space:nowrap" class="g" onclick="addV()">+ Veículo</button></div>`;
+function addV(){if(!P()&&S.veh.length>=1)return gate('Mais de um veículo');const n=prompt('Nome do veículo');if(n){const id=uid();S.veh.push({id,name:n});S.cur=id;save();render()}}
+function list(k){const t=T[k];return `<div class="card"><b>${t.n}</b>${t.f.map(([n,l,ty])=>`<input id="f_${n}" type="${ty}" placeholder="${l}" ${ty=='number'?'step="any" inputmode="decimal"':''} ${ty=='date'?`value="${new Date().toISOString().slice(0,10)}"`:''}>`).join('')}<button onclick="add('${k}')">Salvar</button></div>`+
+mine(k).map(r=>`<div class="card row"><div>${E(r.date)} · ${E(r.desc||r.type||r.l+' L')}<div class="m">${r.km?r.km+' km':''}</div></div><div><b>${R(t.val(r))}</b> <a href="#" onclick="del('${k}',${r.id});return false">✕</a></div></div>`).join('')}
+function add(k){const r={id:uid(),v:S.cur};for(const[n,,ty]of T[k].f){const e=$('#f_'+n).value;if(!e)return alert('Preencha todos os campos');r[n]=ty=='number'?+e:e}
+if(!P()&&mine(k).length>=30)return gate('Mais de 30 registros');S[k].push(r);save();render()}
+const del=(k,id)=>{S[k]=S[k].filter(r=>r.id!=id);save();render()};
+function dash(){const a=[...mine('fuel'),...mine('svc')].filter(r=>r.km).map(r=>r.km),odo=Math.max(0,...a),run=a.length>1?odo-Math.min(...a):0,
+tot=Object.keys(T).reduce((s,k)=>s+mine(k).reduce((x,r)=>x+T[k].val(r),0),0),f=mine('fuel').sort((a,b)=>a.km-b.km),lit=f.slice(1).reduce((s,r)=>s+r.l,0),cons=lit?(f.at(-1).km-f[0].km)/lit:0,
+rem=mine('svc').filter(r=>r.next).map(r=>({d:r.desc,left:r.km+r.next-odo})).sort((a,b)=>a.left-b.left);
+return `<div class="card row"><div><div class="m">Gasto total</div><div class="big">${R(tot)}</div></div><div><div class="m">Consumo</div><div class="big">${cons?cons.toFixed(1)+' km/l':'—'}</div></div><div><div class="m">Custo/km</div><div class="big">${run?R(tot/run):'—'}</div></div></div>
+<div class="card"><b>Lembretes</b>${rem.map(x=>`<div class="row"><span>${E(x.d)}</span><span class="m">${x.left>0?'em '+x.left+' km':'⚠ vencido'}</span></div>`).join('')||'<div class="m">Nenhum</div>'}</div>${rep()}`}
+function rep(){if(!P())return `<div class="card"><b>Relatórios avançados</b><div class="m">Gastos por mês e exportação CSV no Premium.</div><button onclick="go('plan')">Conhecer o Premium</button></div>`;
+const m={};for(const k in T)mine(k).forEach(r=>{const y=r.date.slice(0,7);m[y]=(m[y]||0)+T[k].val(r)});const e=Object.entries(m).sort(),mx=Math.max(1,...e.map(x=>x[1]));
+return `<div class="card"><b>Gastos por mês</b>${e.map(([y,v])=>`<div class="row"><span class="m">${y}</span><span style="flex:1"><i style="display:block;height:14px;border-radius:4px;background:var(--p);width:${v/mx*100}%"></i></span><span>${R(v)}</span></div>`).join('')}<button class="g" onclick="csv()">Exportar CSV</button></div>`}
+function csv(){const l=['tipo,data,descricao,km,valor'];for(const k in T)mine(k).forEach(r=>l.push([k,r.date,String(r.desc||r.type||'').replace(/,/g,' '),r.km||'',T[k].val(r)].join(',')));const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([l.join('\n')],{type:'text/csv'}));a.download='autolog.csv';a.click()}
+function vids(){return (P()?`<div class="card"><input id="vu" placeholder="URL do vídeo (.mp4)"><input id="vt" placeholder="Título"><button onclick="addVid()">Publicar</button></div>`:`<div class="card m">Assistir é grátis. Publicar vídeos é Premium. <a href="#" onclick="go('plan');return false">Ver plano</a></div>`)+
+`<div id="feed">${S.vids.map(v=>`<section><video src="${E(v.url)}" loop muted playsinline preload="metadata"></video><div class="ov"><b>${E(v.title)}</b><button onclick="like(${v.id},this)">♥ ${v.likes}</button></div></section>`).join('')}</div>`}
+const play=()=>{const o=new IntersectionObserver(es=>es.forEach(e=>{const v=e.target.querySelector('video');e.isIntersecting?v.play().catch(()=>{}):v.pause()}),{threshold:.7});document.querySelectorAll('#feed section').forEach(s=>o.observe(s))};
+const addVid=()=>{const url=$('#vu').value.trim(),title=$('#vt').value.trim();if(!/^https?:\/\//.test(url))return alert('URL inválida');S.vids.unshift({id:uid(),url,title:title||'Sem título',likes:0});save();render()};
+const like=(id,b)=>{const v=S.vids.find(v=>v.id==id);v.likes++;save();b.textContent='♥ '+v.likes};
+function plan(){return `<div class="card"><b>Grátis</b><div class="m">1 veículo · 30 registros por categoria · painel básico · assistir vídeos</div></div><div class="card"><b>Premium (assinatura mensal)</b><div class="m">Veículos e registros ilimitados · relatórios por mês · exportar CSV · publicar vídeos</div>${P()?`<div>✅ Você é Premium</div><button onclick="portal()">Gerenciar assinatura</button>`:`<button onclick="buy()">Assinar Premium</button>`}</div>`}
+const api=async(p,b)=>{const r=await fetch('/api/'+p,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b||{})}),j=await r.json();if(!r.ok)throw Error(j.error||'Erro');return j};
+const buy=()=>api('checkout').then(j=>location=j.url).catch(e=>alert(e.message));
+const portal=()=>api('portal',{sid:S.sid}).then(j=>location=j.url).catch(e=>alert(e.message));
+async function sync(){const q=new URLSearchParams(location.search).get('sid');if(q){S.sid=q;history.replaceState({},'',location.pathname);V='plan'}
+if(S.sid)try{S.plan=(await api('status',{sid:S.sid})).premium?'premium':'free';save()}catch(e){}render()}
+sync();
+</script></body></html>
